@@ -1,0 +1,15 @@
+{
+  "name": "operajonal",
+  "version": "0.0.1",
+  "description": "Implementation of free monads, based on Haskell's operational package",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "monad",
+    "free-monad"
+  ],
+  "author": "Philipp Gabler",
+  "license": "MIT"
+}
