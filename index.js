@@ -123,7 +123,7 @@ class Continue extends ProgramView {
 }
 
 // see: https://github.com/Risto-Stevcev/do-notation
-exports.Do = function(generatorFunction) {
+exports.program = function(generatorFunction) {
     const generator = generatorFunction();
     
     return function next(error, v) {
