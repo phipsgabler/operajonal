@@ -20,5 +20,8 @@
     "LICENSE",
     "README.md",
     "index.js"
-  ]
+  ],
+  "dependencies": {
+    "daggy": "42.0.0"
+  }
 }

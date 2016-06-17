@@ -1,147 +1,116 @@
 'use strict';
 
+const daggy = require('daggy');
+
 // see: http://hackage.haskell.org/package/operational-0.2.3.2/docs/Control-Monad-Operational.html
 
 // Basic representation of free programs
-class Program {
-    constructor(type) {
-        this.type = type;
-    }
+const Program = daggy.taggedSum({
+  Lift: ['value'],
+  Bind: ['action', 'continuation'],
+  Instr: ['instruction']
+});
 
-    static inject(x) {
-        return new Lift(x);
-    }
+const {Lift, Bind, Instr} = Program;
 
-    flatMap(f) {
-        return new Bind(this, f);
-    }
-    
-    map(f) {
-        return new Bind(this, x => Program.inject(f(x)));
-    }
-    
-    andThen(k) {
-        return new Bind(this, _ => k);
-    }
+Program.of = x => Lift(x);
 
-    get view() {
-        switch(this.type) {
-        case 'Lift':
-            return new Return(this.value);
-        case 'Bind':
-            switch(this.m.type) {
-            case 'Lift':
-                return this.f(this.m).view;
-            case 'Bind':
-                return (new Bind(this.m.m, x => new Bind(this.m.f(x), this.f))).view;
-            case 'Instr':
-                return new Continue(this.m.instr, this.f);
-            default:
-                throw new Error(`Object ${JSON.stringify(this.m)} is not a valid Program!`);
-            }
-        case 'Instr':
-            return new Continue(this.instr, Program.inject);
-        default:
-            throw new Error(`Object ${this} is not a valid Program!`);
-        }
-    }
+Program.prototype.chain = f => Bind(this, f);
 
-    // interpret(interpreter) {
-    //     const view = this.view;
-        
-    //     switch (view.type) {
-    //     case 'Return':
-    //         return view.value;
-    //     case 'Continue':
-    //         if (!interpreter.has(view.instr.type)){
-    //             throw new Error(`Instruction ${view.instr} is not handled!`);
-    //         }
+Program.prototype.map = f => Bind(this, x => Program.of(f(x)));
 
-    //         interpreter.handlers.get(view.instr.type)(view.instr, view.cont);
-    //     default:
-    //         throw 'Error';
-    //     }
-    // }
-}
+Program.prototype.andThen = k => Bind(this, _ => k);
 
-class Lift extends Program {
-    constructor(value) {
-        super('Lift');
-        this.value = value;
-    }
-}
+Program.prototype.view = () => this.cata({
+  Lift: value => Return(x),
+  Bind: (action, continuation) => action.cata({
+    Lift: value => continuation(value).view,
+    Bind: (action2, continuation2) =>
+      Bind(action2, x => Bind(continuation2(x), continuation)).view,
+    Instr: instruction => Continue(instruction, continuation)
+  }),
+  Instr: instruction => Continue(instruction, Program.of)
+});
 
-class Bind extends Program {
-    constructor(m, f) {
-        super('Bind');
-        this.m = m;
-        this.f = f;
-    }
-}
+// for (let constr in Program) {
+//   Object.assign(constr, {
+//     get view() {
+//       return constr.cata({
+//         Lift: value => Return(x),
+//         Bind: (action, continuation) => action.cata({
+//           Lift: value => continuation(value).view,
+//           Bind: (action2, continuation2) =>
+//             Bind(action2, x => Bind(continuation2(x), continuation)).view,
+//           Instr: instruction => Continue(instruction, continuation)
+//         }),
+//         Instr: instruction => Continue(instruction, Program.of)
+//       });
+//     }
+//   });
+// }
 
-class Instr extends Program {
-    constructor(instr) {
-        super('Instr');
-        this.instr = instr;
-    }
-}
+// Object.defineProperty(Program.prototype, 'view', {
+//   get: () => this.cata({
+//     Lift: value => Return(x),
+//     Bind: (action, continuation) => action.cata({
+//       Lift: value => continuation(value).view,
+//       Bind: (action2, continuation2) =>
+//         Bind(action2, x => Bind(continuation2(x), continuation)).view,
+//       Instr: instruction => Continue(instruction, continuation)
+//     }),
+//     Instr: instruction => Continue(instruction, Program.of)
+//   })
+// });
 
-
-// Interpreter DSL for Programs
-class Interpreter {
-    constructor() {
-        this.handlers = new Map();
-    }
-    
-    on(type, handler) {
-        this.handlers.set(type, handler);
-    }
-}
-
+// Object.assign(Program.prototype, {
+//   get view() {
+//     return this.cata({
+//       Lift: value => Return(x),
+//       Bind: (action, continuation) => action.cata({
+//         Lift: value => continuation(value).view,
+//         Bind: (action2, continuation2) =>
+//           Bind(action2, x => Bind(continuation2(x), continuation)).view,
+//         Instr: instruction => Continue(instruction, continuation)
+//       }),
+//       Instr: instruction => Continue(instruction, Program.of)
+//     });
+//   }
+// }
 
 
 // Views of programs, used to interpret them
-class ProgramView {
-    constructor(type) {
-        this.type = type;
-    }
-}
+const ProgramView = daggy.taggedSum({
+  Return: ['value'],
+  Continue: ['instruction', 'continuation']
+});
 
-class Return extends ProgramView {
-    constructor(value) {
-        super('Return');
-        this.value = value;
-    }
-}
+const {Return, Continue} = ProgramView;
 
-class Continue extends ProgramView {
-    constructor(instr, cont) {
-        super('Continue');
-        this.instr = instr;
-        this.cont = cont;
-    }
-}
 
 // see: https://github.com/Risto-Stevcev/do-notation
-exports.program = function(generatorFunction) {
+function programDo(generatorFunction) {
     const generator = generatorFunction();
     
     return function next(error, v) {
         const res = generator.next(v);
         
         if (res.done) {
-            return Program.inject(res.value);
+            return Program.of(res.value);
         } else {
-            return res.value.flatMap(v => next(null, v) || Program.inject(v));
+            return res.value.chain(v => next(null, v) || Program.of(v));
         }
     }()
 }
 
-exports.Instruction = function(name, value) {
-    return new Instr(Object.assign({type: name}, value));
-}
+// exports.instructionSet = function(name, value) {
+//     return new Instr(Object.assign({type: name}, value));
+// }
 
-exports.Program = Program;
+module.exports = {
+  Program,
+  ProgramView,
+  programDo
+};
 
 
 

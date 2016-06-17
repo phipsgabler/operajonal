@@ -61,5 +61,35 @@ function interpretStackProgram(program, initialStack) {
 }
 
 
+// ideas for better syntax: 
+// const stackInterpreter = initialStack => Interpreter([
+//     on('Return')(x => x),
+//     on('Pop')(recur => {
+//         const [first, ...rest] = initialStack;
+//         return stackInterpreter(recur(first), rest);
+//     }),
+//     on('Push')((recur, x) => stackInterpreter(recur({}), [x, ...initialStack])),
+//     on('Add')(recur => {
+//         const [first, second, ...rest] = initialStack;
+//         const sum = first + second;
+//         return stackInterpreter(recur(sum), [sum, ...rest]);
+//     })
+// ]);
+
+// const interpreter = initialStack => Interpreter({
+//     Return: x => x,
+//     Pop: recur => {
+//         const [first, ...rest] = initialStack;
+//         return recur(first, rest);
+//     },
+//     Push: recur, x => recur({}, [x, ...initialStack]);
+//     Add: recur => {
+//         const [first, second, ...rest] = initialStack;
+//         const sum = first + second;
+//         return recur(sum, [sum, ...rest]);
+//     }
+// });
+
+
 console.log(interpretStackProgram(testProgram1, []));
 
