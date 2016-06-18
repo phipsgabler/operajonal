@@ -13,8 +13,8 @@ const StackInstr = makeInstructions({
 const {Push, Pop, Add} = StackInstr;
 
 
-// A test program operating on stacks:
-const testProgram1 = Program.do(function*() {
+// A test program operating on stacks: (needs to be lazy, because we can't reuse a generator)
+const testProgram1 = () => Program.do(function*() {
   yield Push(10);
   yield Push(20);
   yield Add;
@@ -47,7 +47,7 @@ const interpreter1 = (program, initialStack) => Program.interpret(program)({
   }
 });
 
-console.log(interpreter1(testProgram1, []));
+console.log(interpreter1(testProgram1(), []));
 
 
 
@@ -76,5 +76,5 @@ function interpreter2(program) {
   return go(program);
 }
 
-console.log(interpreter2(testProgram1));
+console.log(interpreter2(testProgram1()));
 
