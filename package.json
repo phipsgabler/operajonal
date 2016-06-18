@@ -22,6 +22,7 @@
     "index.js"
   ],
   "dependencies": {
-    "daggy": "42.0.0"
+    "daggy": "42.0.0",
+    "underscore": "^1.8.3"
   }
 }
