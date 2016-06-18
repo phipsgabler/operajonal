@@ -1,21 +1,27 @@
 'use strict';
 
-const op = require('../index.js');
-
-const Push = n => op.Instruction('Push', {value: n});
-const Pop = op.Instruction('Pop');
-const Add = op.Instruction('Add');
+const {Program, makeInstructions} = require('../index.js');
 
 
+// Defining the instructions we want to provide:
+const StackInstr = makeInstructions({
+  Push: ['value'],
+  Pop: [],
+  Add: []
+});
 
-const testProgram1 = op.program(function*() {
-    yield Push(10);
-    yield Push(20);
-    yield Add;
-    yield Push(33);
-    let thirtyTwo = yield Pop;
-    let sum = yield Pop;
-    return `last element: ${thirtyTwo}, sum of previous: ${sum}`;
+const {Push, Pop, Add} = StackInstr;
+
+
+// A test program operating on stacks: (needs to be lazy, because we can't reuse a generator)
+const testProgram1 = () => Program.do(function*() {
+  yield Push(10);
+  yield Push(20);
+  yield Add;
+  yield Push(33);
+  let thirtyTwo = yield Pop;
+  let sum = yield Pop;
+  return `last element: ${thirtyTwo}, sum of previous: ${sum}`;
 });
 
 // the same thing in "verbose syntax":
@@ -27,39 +33,48 @@ const testProgram1 = op.program(function*() {
 //             sum => Program.inject([sum, thirtyTwo])));
 
 
-// const stackInterpreter = stack =>
-//       new Interpreter().on('Push', (p, v, recur) => {
-          
-//       });
+// an interpreter, which will execute a stack program on an immutable list
+const interpreter1 = (program, initialStack) => Program.interpret(program)({
+  Pop: recur => {
+    const [first, ...rest] = initialStack;
+    return interpreter1(recur(first), rest);
+  },
+  Push: (recur, x) => interpreter1(recur({}), [x, ...initialStack]),
+  Add: recur => {
+    const [first, second, ...rest] = initialStack;
+    const sum = first + second;
+    return interpreter1(recur(sum), [sum, ...rest]);
+  }
+});
 
-function interpretStackProgram(program, initialStack) {
-    const view = program.view;
+console.log(interpreter1(testProgram1(), []));
 
-    switch (view.type) {
-    case 'Return':
-        return view.value;
-    case 'Continue':
-        switch (view.instr.type) {
-        case 'Push': {
-            return interpretStackProgram(view.cont({}), [view.instr.value, ...initialStack]);
-        }
-        case 'Pop': {
-            const [first, ...rest] = initialStack;
-            return interpretStackProgram(view.cont(first), rest);
-        }
-        case 'Add': {
-            const [first, second, ...rest] = initialStack;
-            const sum = first + second;
-            return interpretStackProgram(view.cont(sum), [sum, ...rest]);
-        }
-        default:
-            throw new Error(`Invalid view: ${JSON.stringify(view)}`);
-        }
-    default:
-        throw 'Error';
+
+
+// an interpreter mutating an array:
+function interpreter2(program) {
+  const stack = [];
+
+  const go = p =>  Program.interpret(p)({
+    Pop: recur => {
+      const x = stack.pop();
+      return go(recur(x));
+    },
+    Push: (recur, x) => {
+      stack.push(x);
+      return go(recur({}));
+    },
+    Add: recur => {
+      const first = stack.pop();
+      const second = stack.pop();
+      const sum = first + second;
+      stack.push(sum);
+      return go(recur(sum));
     }
+  });
+
+  return go(program);
 }
 
-
-console.log(interpretStackProgram(testProgram1, []));
+console.log(interpreter2(testProgram1()));
 

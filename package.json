@@ -20,5 +20,9 @@
     "LICENSE",
     "README.md",
     "index.js"
-  ]
+  ],
+  "dependencies": {
+    "daggy": "0.0.1",
+    "underscore": "^1.8.3"
+  }
 }

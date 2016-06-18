@@ -1,147 +1,109 @@
 'use strict';
 
+const daggy = require('daggy');
+const _ = require('underscore');
+
 // see: http://hackage.haskell.org/package/operational-0.2.3.2/docs/Control-Monad-Operational.html
 
-// Basic representation of free programs
-class Program {
-    constructor(type) {
-        this.type = type;
-    }
-
-    static inject(x) {
-        return new Lift(x);
-    }
-
-    flatMap(f) {
-        return new Bind(this, f);
-    }
-    
-    map(f) {
-        return new Bind(this, x => Program.inject(f(x)));
-    }
-    
-    andThen(k) {
-        return new Bind(this, _ => k);
-    }
-
-    get view() {
-        switch(this.type) {
-        case 'Lift':
-            return new Return(this.value);
-        case 'Bind':
-            switch(this.m.type) {
-            case 'Lift':
-                return this.f(this.m).view;
-            case 'Bind':
-                return (new Bind(this.m.m, x => new Bind(this.m.f(x), this.f))).view;
-            case 'Instr':
-                return new Continue(this.m.instr, this.f);
-            default:
-                throw new Error(`Object ${JSON.stringify(this.m)} is not a valid Program!`);
-            }
-        case 'Instr':
-            return new Continue(this.instr, Program.inject);
-        default:
-            throw new Error(`Object ${this} is not a valid Program!`);
-        }
-    }
-
-    // interpret(interpreter) {
-    //     const view = this.view;
-        
-    //     switch (view.type) {
-    //     case 'Return':
-    //         return view.value;
-    //     case 'Continue':
-    //         if (!interpreter.has(view.instr.type)){
-    //             throw new Error(`Instruction ${view.instr} is not handled!`);
-    //         }
-
-    //         interpreter.handlers.get(view.instr.type)(view.instr, view.cont);
-    //     default:
-    //         throw 'Error';
-    //     }
-    // }
-}
-
-class Lift extends Program {
-    constructor(value) {
-        super('Lift');
-        this.value = value;
-    }
-}
-
-class Bind extends Program {
-    constructor(m, f) {
-        super('Bind');
-        this.m = m;
-        this.f = f;
-    }
-}
-
-class Instr extends Program {
-    constructor(instr) {
-        super('Instr');
-        this.instr = instr;
-    }
-}
-
-
-// Interpreter DSL for Programs
-class Interpreter {
-    constructor() {
-        this.handlers = new Map();
-    }
-    
-    on(type, handler) {
-        this.handlers.set(type, handler);
-    }
-}
-
-
-
 // Views of programs, used to interpret them
-class ProgramView {
-    constructor(type) {
-        this.type = type;
-    }
+const ProgramView = daggy.taggedSum({
+  Return: ['value'],
+  Continue: ['instruction', 'continuation']
+});
+
+const {Return, Continue} = ProgramView;
+
+
+// Internal representation of free programs over instructions
+const Program = daggy.taggedSum({
+  Lift: ['value'],
+  Bind: ['action', 'continuation'],
+  Instr: ['instruction']
+});
+
+const {Lift, Bind, Instr} = Program;
+
+Program.of = x => Lift(x);
+
+Program.emit = x => Instr(x);
+
+Program.prototype.chain = function(f) {
+  return Bind(this, f);
+};
+
+Program.prototype.map = function(f){
+  return Bind(this, x => Program.of(f(x)));
+};
+
+Program.prototype.andThen = function(k) {
+  Bind(this, _ => k);
+};
+
+
+
+function viewProgram(program) {
+  return program.cata({
+    Lift: value => Return(value),
+    Bind: (action, continuation) => action.cata({
+      Lift: value => viewProgram(continuation(value)),
+      Bind: (action2, continuation2) =>
+          viewProgram(Bind(action2, x => Bind(continuation2(x), continuation))),
+      Instr: instruction => Continue(instruction, continuation)
+    }),
+    Instr: instruction => Continue(instruction, Program.of)
+  })
 }
 
-class Return extends ProgramView {
-    constructor(value) {
-        super('Return');
-        this.value = value;
-    }
-}
+Program.interpret = prog => interpretation => {
+  const returner = interpretation.Return || (x => x);
 
-class Continue extends ProgramView {
-    constructor(instr, cont) {
-        super('Continue');
-        this.instr = instr;
-        this.cont = cont;
-    }
-}
+  return viewProgram(prog).cata({
+    Return: x => returner(x),
+    Continue: (instruction, continuation) =>
+        instruction.cata(_.mapObject(interpretation, e => _.partial(e, continuation, _)))
+  });
+};
 
 // see: https://github.com/Risto-Stevcev/do-notation
-exports.program = function(generatorFunction) {
-    const generator = generatorFunction();
-    
-    return function next(error, v) {
-        const res = generator.next(v);
-        
-        if (res.done) {
-            return Program.inject(res.value);
-        } else {
-            return res.value.flatMap(v => next(null, v) || Program.inject(v));
-        }
-    }()
+Program.do = function (generatorFunction) {
+  const generator = generatorFunction();
+
+  return function next(error, v) {
+    const res = generator.next(v);
+
+    if (res.done) {
+      return Program.of(res.value);
+    } else {
+      return res.value.chain(v => next(null, v) || Program.of(v));
+    }
+  }()
+};
+
+
+
+function makeInstructions(constructors) {
+  //return new Instr(Object.assign({type: name}, value));
+
+  function instructions() {
+    throw new TypeError('Instruction was called instead of one of its properties.');
+  }
+
+  const representation = daggy.taggedSum(constructors);
+
+  for (let key in constructors) {
+    if (!constructors[key].length)
+        instructions[key] = Instr(representation[key]);
+    else
+        instructions[key] = (...args) => Instr(representation[key](...args));
+  }
+
+  return instructions;
 }
 
-exports.Instruction = function(name, value) {
-    return new Instr(Object.assign({type: name}, value));
-}
-
-exports.Program = Program;
+module.exports = {
+  Program,
+  makeInstructions
+};
 
 
 
