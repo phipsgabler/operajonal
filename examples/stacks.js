@@ -1,12 +1,9 @@
 'use strict';
 
 const {Program, makeInstructions} = require('../index.js');
-const daggy = require('daggy');
 
-//const Push = n => op.Program.emit({type: 'Push', value: n});
-//const Pop = op.Program.emit({type: 'Pop'});
-//const Add = op.Program.emit({type: 'Add'});
 
+// Defining the instructions we want to provide:
 const StackInstr = makeInstructions({
   Push: ['value'],
   Pop: [],
@@ -15,17 +12,8 @@ const StackInstr = makeInstructions({
 
 const {Push, Pop, Add} = StackInstr;
 
-//const StackInstr = daggy.taggedSum({
-//  Push: ['value'],
-//  Pop: [],
-//  Add: []
-//});
-//
-//const Push = n => op.Program.emit(StackInstr.Push(n));
-//const Pop = op.Program.emit(StackInstr.Pop);
-//const Add = op.Program.emit(StackInstr.Add);
 
-
+// A test program operating on stacks:
 const testProgram1 = Program.do(function*() {
   yield Push(10);
   yield Push(20);
@@ -45,21 +33,48 @@ const testProgram1 = Program.do(function*() {
 //             sum => Program.inject([sum, thirtyTwo])));
 
 
+// an interpreter, which will execute a stack program on an immutable list
+const interpreter1 = (program, initialStack) => Program.interpret(program)({
+  Pop: recur => {
+    const [first, ...rest] = initialStack;
+    return interpreter1(recur(first), rest);
+  },
+  Push: (recur, x) => interpreter1(recur({}), [x, ...initialStack]),
+  Add: recur => {
+    const [first, second, ...rest] = initialStack;
+    const sum = first + second;
+    return interpreter1(recur(sum), [sum, ...rest]);
+  }
+});
 
- const interpreter = (program, initialStack) => Program.interpret(program)({
-     Pop: recur => {
-         const [first, ...rest] = initialStack;
-         return interpreter(recur(first), rest);
-     },
-     Push: (recur, x) => interpreter(recur({}), [x, ...initialStack]),
-     Add: recur => {
-         const [first, second, ...rest] = initialStack;
-         const sum = first + second;
-         return interpreter(recur(sum), [sum, ...rest]);
-     }
- });
+console.log(interpreter1(testProgram1, []));
 
-//
-//
-console.log(interpreter(testProgram1, []));
+
+
+// an interpreter mutating an array:
+function interpreter2(program) {
+  const stack = [];
+
+  const go = p =>  Program.interpret(p)({
+    Pop: recur => {
+      const x = stack.pop();
+      return go(recur(x));
+    },
+    Push: (recur, x) => {
+      stack.push(x);
+      return go(recur({}));
+    },
+    Add: recur => {
+      const first = stack.pop();
+      const second = stack.pop();
+      const sum = first + second;
+      stack.push(sum);
+      return go(recur(sum));
+    }
+  });
+
+  return go(program);
+}
+
+console.log(interpreter2(testProgram1));
 

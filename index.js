@@ -28,7 +28,6 @@ Program.of = x => Lift(x);
 Program.emit = x => Instr(x);
 
 Program.prototype.chain = function(f) {
-  console.log(this);
   return Bind(this, f);
 };
 
@@ -44,7 +43,7 @@ Program.prototype.andThen = function(k) {
 
 function viewProgram(program) {
   return program.cata({
-    Lift: value => Return(x),
+    Lift: value => Return(value),
     Bind: (action, continuation) => action.cata({
       Lift: value => viewProgram(continuation(value)),
       Bind: (action2, continuation2) =>
@@ -58,7 +57,7 @@ function viewProgram(program) {
 Program.interpret = prog => interpretation => {
   const returner = interpretation.Return || (x => x);
 
-  viewProgram(prog).cata({
+  return viewProgram(prog).cata({
     Return: x => returner(x),
     Continue: (instruction, continuation) =>
         instruction.cata(_.mapObject(interpretation, e => _.partial(e, continuation, _)))
