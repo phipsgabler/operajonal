@@ -48,7 +48,7 @@ const interpreter1 = (program, initialStack) => Program.interpret(program)({
 });
 
 console.log(interpreter1(testProgram1(), []));
-
+// expected: `last element: 33, sum of previous: 30`
 
 
 // an interpreter mutating an array:
@@ -69,7 +69,7 @@ function interpreter2(program) {
       const second = stack.pop();
       const sum = first + second;
       stack.push(sum);
-      return go(recur(sum));
+      return go(recur({}));
     }
   });
 
@@ -77,4 +77,5 @@ function interpreter2(program) {
 }
 
 console.log(interpreter2(testProgram1()));
+// expected: `last element: 33, sum of previous: 30`
 
