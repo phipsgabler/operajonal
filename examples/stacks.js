@@ -34,7 +34,7 @@ const testProgram = () => Program.do(function*() {
 
 
 (function test1() {
-// an immutable interpreter, which will execute a stack program on an immutable list
+  // An immutable interpreter, which will execute a stack program on an immutable list
   const interpreter = (program, initialStack) => Program.interpret(program)({
     Pop: recur => {
       const [first, ...rest] = initialStack;
@@ -49,11 +49,11 @@ const testProgram = () => Program.do(function*() {
   });
 
   console.log(interpreter(testProgram(), []));
-// expected: `last element: 33, sum of previous: 30`
+  // expected: `last element: 33, sum of previous: 30`
 })();
 
 (function test2() {
-// an interpreter mutating an array:
+  // an interpreter mutating an array:
 
   function interpreter(program) {
     const stack = [];
@@ -80,11 +80,11 @@ const testProgram = () => Program.do(function*() {
   }
 
   console.log(interpreter(testProgram()));
-// expected: `last element: 33, sum of previous: 30`
+  // expected: `last element: 33, sum of previous: 30`
 })();
 
 (function test3() {
-//  An interpreter into the State monad. Immutable, and eta-equivalent to test1.
+  // An interpreter into the State monad. Immutable, and eta-equivalent to test1.
 
   class State {
     constructor(run) {
@@ -127,9 +127,7 @@ const testProgram = () => Program.do(function*() {
   }
 
   function interpreter(program) {
-    const stack = [];
-
-    const go = p => Program.interpretMonadic(p)({
+    return Program.interpretMonadic(program)({
       Return: State.of,
       Pop: () => State.get().chain(stack => {
         const [first, ...rest] = stack;
@@ -142,12 +140,10 @@ const testProgram = () => Program.do(function*() {
         return State.put([sum, ...rest]).andThen(State.of(sum));
       })
     });
-
-    return go(program);
   }
 
   // we run this with a stack already containing a value, which should be kept untouched
   console.log(interpreter(testProgram()).run([666]));
-// expected: [ 'last element: 33, sum of previous: 30', [ 666 ] ]
+  // expected: [ 'last element: 33, sum of previous: 30', [ 666 ] ]
 })();
 
