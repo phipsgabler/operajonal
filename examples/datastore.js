@@ -1,7 +1,8 @@
 'use strict';
 
 const {Program, makeInstructions} = require('../index.js');
-const _ = require('underscore');
+const readline = require('readline');
+const Task = require('data.task');
 
 const DB = makeInstructions({
   GetThing: ['name'],
@@ -29,6 +30,8 @@ const testProgram = () => Program.do(function*() {
 
 
 (function test1() {
+  // simple version: we use a given "database" map, plus a mocked logger
+
   function interpret(program, database, logger) {
     function go(prog) {
       return Program.interpret(prog)({
@@ -67,14 +70,73 @@ const testProgram = () => Program.do(function*() {
   });
 
   // see if we get what we want:
+  console.log('test 1 database at start: ', ...testEnv.entries());
   console.log('test 1 result: ', interpret(testProgram(), testEnv, logger));
-  console.log('test 1 database: ', ...testEnv.entries());
+  console.log('test 1 database at end: ', ...testEnv.entries());
   console.log('test 1 log: ', logger.logs);
 
   // expected result:
-  //test 1 result:  [ 52, 52 ]
-  //test 1 database:  [ 'foo', 10 ] [ 'bar', 42 ] [ 'baz', 666 ] [ 'foo+bar', 52 ]
-  //test 1 log:  [ 'foo + bar is 52' ]
+  // test 1 database at start:  [ 'foo', 10 ] [ 'bar', 42 ] [ 'baz', 666 ]
+  // test 1 result:  [ 52, 52 ]
+  // test 1 database at end:  [ 'foo', 10 ] [ 'bar', 42 ] [ 'baz', 666 ] [ 'foo+bar', 52 ]
+  // test 1 log:  [ 'foo + bar is 52' ]
 })();
 
+(function test2() {
+  // "complicated" version: we convert instructions into Tasks, which are chained into
+  // a sequence of calls to `readline.question` (note the use of `interpretMonadic`!)
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  // because this is asynchronous, we can't get out of the read loop otherwise...
+  rl.on('close', () => process.exit(0));
+
+  function interpret(program) {
+    return Program.interpretMonadic(program)({
+      Return: Task.of,
+      GetThing: (name) => new Task((reject, resolve) => {
+        rl.question(`Value for ${name}:\n> `, rawInput => {
+          const input = Number(rawInput);
+          if (Number.isNaN(input))
+            reject(input);
+          else
+            resolve(input);
+        });
+      }),
+      PutThing: (name, value) => new Task((reject, resolve) => {
+        console.log(`Put: ${name} => ${value}`);
+        resolve({});
+      }),
+      Log: (msg) => new Task((reject, resolve) => {
+        console.log(`Log: ${msg}`);
+        resolve({});
+      })
+    });
+  }
+
+  interpret(testProgram()).fork(
+      error => {
+        console.log('Error in test 2:', error);
+        rl.close();
+      },
+      result => {
+        console.log('Result of test 2:', result);
+        rl.close();
+      }
+  );
+
+  // example result:
+  // Value for foo:
+  // > 10
+  // Value for bar:
+  // > 20
+  // Log: foo + bar is 30
+  // Put: foo+bar => 30
+  // Value for foo+bar:
+  // > 30
+  // Result of test 2: 30,30
+})();
 

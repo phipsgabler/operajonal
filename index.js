@@ -64,6 +64,14 @@ Program.interpret = prog => interpretation => {
   });
 };
 
+Program.interpretMonadic = prog => transformation => {
+  return viewProgram(prog).cata({
+    Return: x => transformation.Return(x),
+    Continue: (instruction, continuation) =>
+        instruction.cata(transformation).chain(x => Program.interpretMonadic(continuation(x))(transformation))
+  });
+};
+
 // see: https://github.com/Risto-Stevcev/do-notation
 Program.do = function (generatorFunction) {
   const generator = generatorFunction();
