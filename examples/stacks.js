@@ -1,6 +1,6 @@
 'use strict';
 
-const {Program, makeInstructions} = require('../index.js');
+const {Program, makeInstructions} = require('../');
 
 
 // Defining the instructions we want to provide:
@@ -28,8 +28,8 @@ const testProgram = () => Program.do(function*() {
 // const testProgram2 = Push(10).andThen(Push(20))
 //     .andThen(Add())
 //     .andThen(Push(33))
-//     .andThen(Pop()).flatMap(
-//         thirtyTwo => Pop().flatMap(
+//     .andThen(Pop()).chain(
+//         thirtyTwo => Pop().chain(
 //             sum => Program.inject([sum, thirtyTwo])));
 
 
