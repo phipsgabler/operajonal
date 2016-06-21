@@ -55,11 +55,10 @@ Object.defineProperty(Program.prototype, 'view', {
 });
 
 Program.prototype.interpret = function(interpretation) {
-  const returner = interpretation.Return || (x => x);
-
   return this.view.cata({
-    Return: x => returner(x),
+    Return: x => (interpretation.Return || (x => x)),
     Continue: (instruction, continuation) =>
+        // the `_.mapObject` "patches" each pattern case by providing the current continuation as first argument
         instruction.cata(_.mapObject(interpretation, e => _.partial(e, continuation, _)))
   });
 };
@@ -68,7 +67,7 @@ Program.prototype.interpretMonadic = function(transformation) {
   return this.view.cata({
     Return: x => transformation.Return(x),
     Continue: (instruction, continuation) =>
-        instruction.cata(transformation).chain(x => Program.interpretMonadic(continuation(x))(transformation))
+        instruction.cata(transformation).chain(x => continuation(x).interpretMonadic(transformation))
   });
 };
 
@@ -96,7 +95,7 @@ Program.do = function (generatorFunction) {
 
 
 function makeInstructions(constructors) {
-  //return new Instr(Object.assign({type: name}, value));
+  // kind of a clone from the daggy `tagged` method.
 
   function instructions() {
     throw new TypeError('Instruction was called instead of one of its properties.');
@@ -116,6 +115,7 @@ function makeInstructions(constructors) {
 
 module.exports = {
   Program,
+  ProgramView,
   makeInstructions
 };
 
