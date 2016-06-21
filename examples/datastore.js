@@ -1,6 +1,6 @@
 'use strict';
 
-const {Program, makeInstructions} = require('../index.js');
+const {Program, makeInstructions} = require('../');
 const readline = require('readline');
 const Task = require('data.task');
 
@@ -21,12 +21,10 @@ const testProgram = () => Program.do(function*() {
 });
 
 // the same thing in "verbose syntax":
-//let testProgram = GetThing('foo').flatMap(
-//    foo => GetThing('bar').flatMap(
-//        bar => Log(`foo + bar: ${foo + bar}`).flatMap(
+//let testProgram = GetThing('foo').chain(
+//    foo => GetThing('bar').chain(
+//        bar => Log(`foo + bar: ${foo + bar}`).chain(
 //            _ => PutThing('foo+bar', foo + bar))));
-////console.log(testProgram);
-//
 
 
 (function test1() {
@@ -92,7 +90,7 @@ const testProgram = () => Program.do(function*() {
   });
 
   // because this is asynchronous, we can't get out of the read loop otherwise...
-  rl.on('close', () => process.exit(0));
+  rl.on('close', () => process.stdin.destroy());
 
   function interpret(program) {
     return Program.interpretMonadic(program)({
