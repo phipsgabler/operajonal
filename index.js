@@ -39,25 +39,26 @@ Program.prototype.andThen = function(k) {
   Bind(this, _ => k);
 };
 
+Object.defineProperty(Program.prototype, 'view', {
+  get: function () {
+    return this.cata({
+      Lift: value => Return(value),
+      Bind: (action, continuation) => action.cata({
+        Lift: value => viewProgram(continuation(value)),
+        Bind: (action2, continuation2) =>
+            viewProgram(Bind(action2, x => Bind(continuation2(x), continuation))),
+        Instr: instruction => Continue(instruction, continuation)
+      }),
+      Instr: instruction => Continue(instruction, Program.of)
+    })
+  }
+});
 
-
-function viewProgram(program) {
-  return program.cata({
-    Lift: value => Return(value),
-    Bind: (action, continuation) => action.cata({
-      Lift: value => viewProgram(continuation(value)),
-      Bind: (action2, continuation2) =>
-          viewProgram(Bind(action2, x => Bind(continuation2(x), continuation))),
-      Instr: instruction => Continue(instruction, continuation)
-    }),
-    Instr: instruction => Continue(instruction, Program.of)
-  })
-}
 
 Program.interpret = prog => interpretation => {
   const returner = interpretation.Return || (x => x);
 
-  return viewProgram(prog).cata({
+  return prog.view.cata({
     Return: x => returner(x),
     Continue: (instruction, continuation) =>
         instruction.cata(_.mapObject(interpretation, e => _.partial(e, continuation, _)))
@@ -65,7 +66,7 @@ Program.interpret = prog => interpretation => {
 };
 
 Program.interpretMonadic = prog => transformation => {
-  return viewProgram(prog).cata({
+  return prog.view.cata({
     Return: x => transformation.Return(x),
     Continue: (instruction, continuation) =>
         instruction.cata(transformation).chain(x => Program.interpretMonadic(continuation(x))(transformation))
