@@ -35,7 +35,7 @@ const testProgram = () => Program.do(function*() {
 
 (function test1() {
   // An immutable interpreter, which will execute a stack program on an immutable list
-  const interpreter = (program, initialStack) => Program.interpret(program)({
+  const interpreter = (program, initialStack) => program.interpret({
     Pop: recur => {
       const [first, ...rest] = initialStack;
       return interpreter(recur(first), rest);
@@ -58,7 +58,7 @@ const testProgram = () => Program.do(function*() {
   function interpreter(program) {
     const stack = [];
 
-    const go = p => Program.interpret(p)({
+    const go = p => p.interpret({
       Pop: recur => {
         const x = stack.pop();
         return go(recur(x));
@@ -127,7 +127,7 @@ const testProgram = () => Program.do(function*() {
   }
 
   function interpreter(program) {
-    return Program.interpretMonadic(program)({
+    return program.interpretMonadic({
       Return: State.of,
       Pop: () => State.get().chain(stack => {
         const [first, ...rest] = stack;
