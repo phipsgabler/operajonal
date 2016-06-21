@@ -40,7 +40,7 @@ Program.prototype.andThen = function(k) {
 };
 
 Object.defineProperty(Program.prototype, 'view', {
-  get: function () {
+  get: function() {
     return this.cata({
       Lift: value => Return(value),
       Bind: (action, continuation) => action.cata({
@@ -54,24 +54,29 @@ Object.defineProperty(Program.prototype, 'view', {
   }
 });
 
-
-Program.interpret = prog => interpretation => {
+Program.prototype.interpret = function(interpretation) {
   const returner = interpretation.Return || (x => x);
 
-  return prog.view.cata({
+  return this.view.cata({
     Return: x => returner(x),
     Continue: (instruction, continuation) =>
         instruction.cata(_.mapObject(interpretation, e => _.partial(e, continuation, _)))
   });
 };
 
-Program.interpretMonadic = prog => transformation => {
-  return prog.view.cata({
+Program.prototype.interpretMonadic = function(transformation) {
+  return this.view.cata({
     Return: x => transformation.Return(x),
     Continue: (instruction, continuation) =>
         instruction.cata(transformation).chain(x => Program.interpretMonadic(continuation(x))(transformation))
   });
 };
+
+
+// Just static variants of the above methods. Better use those.
+Program.interpret = prog => interpretation => prog.interpret(interpretation);
+Program.interpretMonadic = prog => transformation => prog.interpretMonadic(transformation);
+
 
 // see: https://github.com/Risto-Stevcev/do-notation
 Program.do = function (generatorFunction) {
