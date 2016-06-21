@@ -32,7 +32,7 @@ const testProgram = () => Program.do(function*() {
 
   function interpret(program, database, logger) {
     function go(prog) {
-      return Program.interpret(prog)({
+      return prog.interpret({
         GetThing: (returning, name) => {
           const thing = database.get(name);
           return go(returning(thing));
@@ -93,7 +93,7 @@ const testProgram = () => Program.do(function*() {
   rl.on('close', () => process.stdin.destroy());
 
   function interpret(program) {
-    return Program.interpretMonadic(program)({
+    return program.interpretMonadic({
       Return: Task.of,
       GetThing: (name) => new Task((reject, resolve) => {
         rl.question(`Value for ${name}:\n> `, rawInput => {
