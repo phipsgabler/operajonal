@@ -97,7 +97,7 @@ write our own recursion, but simply translate each instruction into a new monadi
 automatically be chained, and the resulting monadic action can be handled as needed:
 
 ```{JavaScript}
-function MonadicInterpreter(program) {
+function monadicInterpreter(program) {
   return program.interpretMonadic({
     Return: State.of,
     Pop: () => State.get().chain(stack => {
@@ -120,7 +120,7 @@ the binding method is called `chain`).
 We can run this (assuming our State monad has a `run` method) with: 
 
 ```{JavaScript}
-console.log(interpreter(testProgram()).run([]));
+console.log(monadicInterpreter(testProgram()).run([]));
 ```
 
 and it should produce a result equivalent to above.
