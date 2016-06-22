@@ -14,6 +14,14 @@ Additionally, a "do notation" hack via generator functions is provided. Also, it
 [`daggy`](https://github.com/puffnfresh/daggy) to automatically produce nicely usable sum types and allow for
 some pattern-matching-like syntax.
 
+## Installation ##
+
+Currently, only
+
+```
+npm install https://github.com/phipsgabler/operajonal.git
+```
+
 ## Example 1: Stacks ##
 
 Can be found in [examples/stacks.js](./examples/stacks.js). Basically, a clone of the stack interpreter
