@@ -30,7 +30,7 @@ const testProgram = () => Program.do(function*() {
 //     .andThen(Push(33))
 //     .andThen(Pop()).chain(
 //         thirtyTwo => Pop().chain(
-//             sum => Program.inject([sum, thirtyTwo])));
+//             sum => Program.of([sum, thirtyTwo])));
 
 
 (function test1() {
@@ -53,8 +53,7 @@ const testProgram = () => Program.do(function*() {
 })();
 
 (function test2() {
-  // an interpreter mutating an array:
-
+  // an interpreter internally mutating an array
   function interpreter(program) {
     const stack = [];
 
@@ -147,3 +146,61 @@ const testProgram = () => Program.do(function*() {
   // expected: [ 'last element: 33, sum of previous: 30', [ 666 ] ]
 })();
 
+
+(function test4() {
+  // here, we test how control structures in do notation work
+  const testProgram2 = Program.do(function*() {
+    yield Push(10);
+    yield Push(230);
+    yield Add;
+    let s = yield Pop;
+
+    if (s == 30)
+        return `true: ${s}`;
+    else {
+      yield Push(s);
+      yield Push(-s);
+      yield Add;
+      let c = yield Pop;
+      return `false: ${s}, corrected to ${c}`;
+    }
+  });
+
+  // ...and what happens if we leave out the return (the "last action (ie. yield)" should count)
+  const testProgram3 = Program.do(function*() {
+    yield Push(10);
+    yield Push(42);
+    yield Add;
+    yield Pop;
+  });
+
+  function interpreter(program) {
+    const stack = [];
+
+    const go = p => p.interpret({
+      Pop: recur => {
+        const x = stack.pop();
+        return go(recur(x));
+      },
+      Push: (recur, x) => {
+        stack.push(x);
+        return go(recur({}));
+      },
+      Add: recur => {
+        const first = stack.pop();
+        const second = stack.pop();
+        const sum = first + second;
+        stack.push(sum);
+        return go(recur({}));
+      }
+    });
+
+    return go(program);
+  }
+
+  // expected: false: 240, corrected to 0
+  console.log(interpreter(testProgram2));
+
+  // expected: 52
+  console.log(interpreter(testProgram3));
+})();

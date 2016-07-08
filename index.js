@@ -56,7 +56,7 @@ Object.defineProperty(Program.prototype, 'view', {
 
 Program.prototype.interpret = function(interpretation) {
   return this.view.cata({
-    Return: x => (interpretation.Return || (x => x)),
+    Return: x => (interpretation.Return || (z => z))(x),
     Continue: (instruction, continuation) =>
         // the `_.mapObject` "patches" each pattern case by providing the current continuation as first argument
         instruction.cata(_.mapObject(interpretation, e => _.partial(e, continuation, _)))
@@ -85,7 +85,14 @@ Program.do = function (generatorFunction) {
     const res = generator.next(v);
 
     if (res.done) {
-      return Program.of(res.value);
+      // this is a little hack to make things look more like in Haskell
+      if (!res.value) {
+        // there was no return, we use the value of the last action/yield
+        return Program.of(v);
+      } else {
+        // an actual return statement just lifts the returned value
+        return Program.of(res.value);
+      }
     } else {
       return res.value.chain(v => next(null, v) || Program.of(v));
     }
@@ -95,7 +102,7 @@ Program.do = function (generatorFunction) {
 
 
 function makeInstructions(constructors) {
-  // kind of a clone from the daggy `tagged` method.
+  // kind of a clone of the daggy `tagged` method.
 
   function instructions() {
     throw new TypeError('Instruction was called instead of one of its properties.');
