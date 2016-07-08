@@ -174,6 +174,17 @@ const testProgram = () => Program.do(function*() {
     yield Pop;
   });
 
+  const testProgram4 = Program.do(function*() {
+    yield Push(null);
+    let x = yield Pop;
+    if (!x) {
+      yield Push(-1);
+      yield Pop;
+    } else {
+      return x;
+    }
+  });
+
   function interpreter(program) {
     const stack = [];
 
@@ -198,9 +209,12 @@ const testProgram = () => Program.do(function*() {
     return go(program);
   }
 
-  // expected: false: 240, corrected to 0
+  // // expected: false: 240, corrected to 0
   console.log(interpreter(testProgram2));
+  //
+  // // expected: 52
+   console.log(interpreter(testProgram3));
 
-  // expected: 52
-  console.log(interpreter(testProgram3));
+  // expected: -1
+  console.log(interpreter(testProgram4))
 })();
